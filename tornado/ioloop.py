@@ -757,7 +757,7 @@ class PollIOLoop(IOLoop):
                     signal.setitimer(signal.ITIMER_REAL, 0, 0)
 
                 try:
-                    event_pairs = self._impl.poll(poll_timeout)
+                    event_pairs = self._impl.poll(poll_timeout)  # 阻塞在这里
                 except Exception as e:
                     # Depending on python version and IOLoop implementation,
                     # different exception types may be thrown and there are

@@ -34,11 +34,13 @@ except ImportError:
     # ssl is not available on Google App Engine.
     ssl = None
 
+# 非阻塞单线程TCP服务器
 class TCPServer(object):
     r"""A non-blocking, single-threaded TCP server.
 
     To use `TCPServer`, define a subclass which overrides the `handle_stream`
     method.
+    # 继承的时候需要改写handle_stream函数
 
     To make this server serve SSL traffic, send the ssl_options dictionary
     argument with the arguments required for the `ssl.wrap_socket` method,
@@ -52,12 +54,14 @@ class TCPServer(object):
     `TCPServer` initialization follows one of three patterns:
 
     1. `listen`: simple single-process::
+    # 单进程使用方法
 
             server = TCPServer()
             server.listen(8888)
             IOLoop.instance().start()
 
     2. `bind`/`start`: simple multi-process::
+    # 多进程使用方法
 
             server = TCPServer()
             server.bind(8888)
@@ -88,11 +92,11 @@ class TCPServer(object):
     """
     def __init__(self, io_loop=None, ssl_options=None, max_buffer_size=None,
                  read_chunk_size=None):
-        self.io_loop = io_loop
+        self.io_loop = io_loop  # 检测使用的循环
         self.ssl_options = ssl_options
-        self._sockets = {}  # fd -> socket object
-        self._pending_sockets = []
-        self._started = False
+        self._sockets = {}  # fd -> socket object， 需要检测的fd的集合
+        self._pending_sockets = []  # 需要监听，但是还没有监听的sockets
+        self._started = False  # 是否开始了
         self.max_buffer_size = max_buffer_size
         self.read_chunk_size = None
 
@@ -100,6 +104,7 @@ class TCPServer(object):
         # connect. This doesn't verify that the keys are legitimate, but
         # the SSL module doesn't do that until there is a connected socket
         # which seems like too much work
+        # ssl基本的检测
         if self.ssl_options is not None and isinstance(self.ssl_options, dict):
             # Only certfile is required: it can contain both keys
             if 'certfile' not in self.ssl_options:
@@ -113,6 +118,7 @@ class TCPServer(object):
                 raise ValueError('keyfile "%s" does not exist' %
                                  self.ssl_options['keyfile'])
 
+    # 开始监听端口
     def listen(self, port, address=""):
         """Starts accepting connections on the given port.
 
@@ -121,9 +127,12 @@ class TCPServer(object):
         `TCPServer.start` afterwards.  It is, however, necessary to start
         the `.IOLoop`.
         """
+        # 创建需要监听的socket对象
         sockets = bind_sockets(port, address=address)
-        self.add_sockets(sockets)
+        self.add_sockets(sockets)  # 将需要监听的对象添加到IOLoop里面
 
+    # 这个函数只是添加监听别的连接进来的那个socket
+    # 连接进来之后新建的socket不是使用这个函数添加的
     def add_sockets(self, sockets):
         """Makes this server start accepting connections on the given sockets.
 
@@ -134,10 +143,14 @@ class TCPServer(object):
         control over the initialization of a multi-process server.
         """
         if self.io_loop is None:
-            self.io_loop = IOLoop.current()
+            self.io_loop = IOLoop.current()  # 创建一个IOLoop
 
-        for sock in sockets:
-            self._sockets[sock.fileno()] = sock
+        for sock in sockets:  # sock.fileno() 返回文件标记，一个整数
+            self._sockets[sock.fileno()] = sock  # 添加到需要监听的列表
+
+            # 需要监听的列表有不同类型的socket，这个是用于accept新连接的socket，
+            # 所以使用 add_accept_handler
+            # IOLoop是如何区分两个类型的socket，又是如何监听的，需要以后好好的看看
             add_accept_handler(sock, self._handle_connection,
                                io_loop=self.io_loop)
 
@@ -145,6 +158,7 @@ class TCPServer(object):
         """Singular version of `add_sockets`.  Takes a single socket object."""
         self.add_sockets([socket])
 
+    # 将server绑定到端口，就是server需要监听哪个端口
     def bind(self, port, address=None, family=socket.AF_UNSPEC, backlog=128):
         """Binds this server to the given port on the given address.
 
@@ -165,6 +179,7 @@ class TCPServer(object):
         This method may be called multiple times prior to `start` to listen
         on multiple ports or interfaces.
         """
+        # 获取能够accept的socket
         sockets = bind_sockets(port, address=address, family=family,
                                backlog=backlog)
         if self._started:
@@ -195,11 +210,12 @@ class TCPServer(object):
         assert not self._started
         self._started = True
         if num_processes != 1:
-            process.fork_processes(num_processes)
+            process.fork_processes(num_processes)  # 开启了N个进程，然后就是干啊
         sockets = self._pending_sockets
         self._pending_sockets = []
         self.add_sockets(sockets)
 
+    # 停止监听，清空和关闭全部的监听的socket
     def stop(self):
         """Stops listening for new connections.
 
@@ -210,11 +226,13 @@ class TCPServer(object):
             self.io_loop.remove_handler(fd)
             sock.close()
 
+    # 很显然我没有完全理解
     def handle_stream(self, stream, address):
         """Override to handle a new `.IOStream` from an incoming connection."""
         raise NotImplementedError()
 
     def _handle_connection(self, connection, address):
+        # 如果可以的话，启用ssl
         if self.ssl_options is not None:
             assert ssl, "Python 2.6+ and OpenSSL required for SSL"
             try:

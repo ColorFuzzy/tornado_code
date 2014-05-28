@@ -97,6 +97,7 @@ class _NormalizedHeaderCache(dict):
             del self[old_key]  # dict也要删除一次
         return normalized
 
+# 一个全局的缓存header关键字的实例
 _normalized_headers = _NormalizedHeaderCache(1000)
 
 
@@ -247,6 +248,7 @@ class HTTPHeaders(dict):
         return HTTPHeaders(self)
 
 
+# 注意和HTTPRequest的区别，两个都是Request的类
 class HTTPServerRequest(object):
     """A single HTTP request.
 
@@ -357,9 +359,9 @@ class HTTPServerRequest(object):
 
         self.host = host or self.headers.get("Host") or "127.0.0.1"
         self.files = files or {}
-        self.connection = connection
-        self._start_time = time.time()
-        self._finish_time = None
+        self.connection = connection  # 不明白
+        self._start_time = time.time()  # 请求开始的时间
+        self._finish_time = None  # 请求结束的时间
 
         self.path, sep, self.query = uri.partition('?')
         self.arguments = parse_qs_bytes(self.query, keep_blank_values=True)
@@ -377,7 +379,7 @@ class HTTPServerRequest(object):
         return self.version == "HTTP/1.1"
 
     @property
-    def cookies(self):
+    def cookies(self):  # 获取cookie
         """A dictionary of Cookie.Morsel objects."""
         if not hasattr(self, "_cookies"):
             self._cookies = Cookie.SimpleCookie()
@@ -409,10 +411,12 @@ class HTTPServerRequest(object):
         self.connection.finish()
         self._finish_time = time.time()
 
+    # 包含全部的url路径
     def full_url(self):
         """Reconstructs the full URL for this request."""
         return self.protocol + "://" + self.host + self.uri
 
+    # 请求已经处理的时间
     def request_time(self):
         """Returns the amount of time it took for this request to execute."""
         if self._finish_time is None:
@@ -579,6 +583,7 @@ class HTTPConnection(object):
         raise NotImplementedError()
 
 
+# 拼装URL，但是不检查变量的重复性
 def url_concat(url, args):
     """Concatenate url and argument dictionary regardless of whether
     url has existing query parameters.
