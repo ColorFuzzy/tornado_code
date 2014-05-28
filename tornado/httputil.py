@@ -74,19 +74,27 @@ class _NormalizedHeaderCache(dict):
     """
     def __init__(self, size):
         super(_NormalizedHeaderCache, self).__init__()
-        self.size = size
+        self.size = size  # 缓存的最大的数目
+
+        # 这个对象类似于list列表，不过你可以操作它的“两端”，就是可以向两端添加数据
         self.queue = collections.deque()
 
     def __missing__(self, key):
+        # 如果是通过直接的key访问没有返回，才会调用这个函数
+
+        # 格式化关键字
         normalized = "-".join([w.capitalize() for w in key.split("-")])
-        self[key] = normalized
-        self.queue.append(key)
+
+        self[key] = normalized  # 缓存一下，以后可以通过key直接访问了
+        self.queue.append(key)  # 缓存的记录
+
+        # 缓存的数字限制
         if len(self.queue) > self.size:
             # Limit the size of the cache.  LRU would be better, but this
             # simpler approach should be fine.  In Python 2.7+ we could
             # use OrderedDict (or in 3.2+, @functools.lru_cache).
-            old_key = self.queue.popleft()
-            del self[old_key]
+            old_key = self.queue.popleft()  # 删除最左边的
+            del self[old_key]  # dict也要删除一次
         return normalized
 
 _normalized_headers = _NormalizedHeaderCache(1000)
@@ -125,8 +133,10 @@ class HTTPHeaders(dict):
         # Don't pass args or kwargs to dict.__init__, as it will bypass
         # our __setitem__
         dict.__init__(self)
+
+        # _ad_list作为一个字典，key就是name了，value是一个list，保存的就是多值
         self._as_list = {}
-        self._last_key = None
+        self._last_key = None  # 最后一次访问的key
         if (len(args) == 1 and len(kwargs) == 0 and
                 isinstance(args[0], HTTPHeaders)):  # 如果参数只是一个HTTPHeaders
             # Copy constructor
@@ -134,7 +144,7 @@ class HTTPHeaders(dict):
                 self.add(k, v)
         else:
             # Dict-style initialization
-            self.update(*args, **kwargs)
+            self.update(*args, **kwargs)  # args是字典的tuple
 
     # new public methods
 
@@ -142,7 +152,7 @@ class HTTPHeaders(dict):
         """Adds a new value for the given key."""
         norm_name = _normalized_headers[name]
         self._last_key = norm_name
-        if norm_name in self:
+        if norm_name in self:  # 如果包含了这个key
             # bypass our override of __setitem__ since it modifies _as_list
             dict.__setitem__(self, norm_name,
                              native_str(self[norm_name]) + ',' +
@@ -151,11 +161,13 @@ class HTTPHeaders(dict):
         else:
             self[norm_name] = value
 
+    # 获取一个key的list
     def get_list(self, name):
         """Returns all values for the given header as a list."""
         norm_name = _normalized_headers[name]
         return self._as_list.get(norm_name, [])
 
+    # 作为key value返回
     def get_all(self):
         """Returns an iterable of all (name, value) pairs.
 
@@ -200,14 +212,17 @@ class HTTPHeaders(dict):
 
     # dict implementation overrides
 
+    # 设置变量的时候自动更新了self._as_list
     def __setitem__(self, name, value):
         norm_name = _normalized_headers[name]
         dict.__setitem__(self, norm_name, value)
         self._as_list[norm_name] = [value]
 
+    # 获取变量的时候，改写了name
     def __getitem__(self, name):
         return dict.__getitem__(self, _normalized_headers[name])
 
+    # 删除变量的时候，改写了name
     def __delitem__(self, name):
         norm_name = _normalized_headers[name]
         dict.__delitem__(self, norm_name)
@@ -226,6 +241,7 @@ class HTTPHeaders(dict):
         for k, v in dict(*args, **kwargs).items():
             self[k] = v
 
+    # 复制一份自己
     def copy(self):
         # default implementation returns dict(self), not the subclass
         return HTTPHeaders(self)
