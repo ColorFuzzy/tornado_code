@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2011 Facebook
@@ -187,6 +188,7 @@ class TCPServer(object):
         else:
             self._pending_sockets.extend(sockets)
 
+    # 这里依旧没有start，知识添加了sockets到需要监听的地方，IOLoop的start才是王道啊
     def start(self, num_processes=1):
         """Starts this server in the `.IOLoop`.
 
