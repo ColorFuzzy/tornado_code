@@ -73,6 +73,8 @@ class TimeoutError(Exception):  # 超时错误
 # 强烈建议阅读这篇博客
 # http://golubenco.org/understanding-the-code-inside-tornado-the-asynchronous-web-server-powering-friendfeed.html
 class IOLoop(Configurable):
+    # io_loop = IOLoop()创建的时候，运行了Configurable类的__new__
+    # 在这个里面选择了一个合适的类作为真正的IOLoop，比如ubuntu使用了EPollIOLoop
     """A level-triggered I/O loop.
 
     We use ``epoll`` (Linux) or ``kqueue`` (BSD and Mac OS X) if they
@@ -147,6 +149,7 @@ class IOLoop(Configurable):
     # 同一个即使是在一个进程、一个类里面，_current的值是不一样的，这个太神奇了！！！ #good#
     _current = threading.local()  # 线程独有的变量管理
 
+    # 返回一个IOLoop实例，没有的话就创建
     @staticmethod
     def instance():  # 创建一个IOLoop的实例， 同时返回，一个进程只能创建一个
         """Returns a global `IOLoop` instance.
@@ -167,7 +170,7 @@ class IOLoop(Configurable):
         """Returns true if the singleton instance has been created."""
         return hasattr(IOLoop, "_instance")
 
-    # 将IOLoop._instance绑定到自己
+    # 将IOLoop._instance绑定到一个实例
     def install(self):
         """Installs this `IOLoop` object as the singleton instance.
 
@@ -178,6 +181,7 @@ class IOLoop(Configurable):
         assert not IOLoop.initialized()
         IOLoop._instance = self
 
+    # 有一个疑问，这个IOLoop实例被清理之后，被它监听的fds如何被处理和回收的呢
     @staticmethod
     def clear_instance():  # 删除_instance实例
         """Clear the global `IOLoop` instance.
@@ -187,8 +191,9 @@ class IOLoop(Configurable):
         if hasattr(IOLoop, "_instance"):
             del IOLoop._instance
 
+    # 这里不明白为何要区分某一个线程的IOLoop，本来不是只有一个的么
     @staticmethod
-    def current():  # 返回当前进程的_instance
+    def current():  # 返回当前线程的_instance
         """Returns the current thread's `IOLoop`.
 
         If an `IOLoop` is currently running or has been marked as current
@@ -455,6 +460,7 @@ class IOLoop(Configurable):
         """
         return time.time()
 
+    # 函数延时执行
     def add_timeout(self, deadline, callback):
         """Runs the ``callback`` at the time ``deadline`` from the I/O loop.
 
@@ -472,6 +478,7 @@ class IOLoop(Configurable):
         """
         raise NotImplementedError()
 
+    # 移除延时执行的函数
     def remove_timeout(self, timeout):
         """Cancels a pending timeout.
 
@@ -598,14 +605,27 @@ class PollIOLoop(IOLoop):
         # ubuntu系统使用的epoll
         self._impl = impl
 
+        # 不明白
         if hasattr(self._impl, 'fileno'):
             set_close_exec(self._impl.fileno())
+
+        # 设置获取时间的函数
         self.time_func = time_func or time.time
+
+        # self._handlers[fd] = (obj, stack_context.wrap(handler))
+        # fd这个时候是一个数字，一般的时候是一个fd的对象
         self._handlers = {}
+
+        # 保存每一次循环所得到的fd和事件对
         self._events = {}
+
+        # 所有的callback函数的集合
         self._callbacks = []
         self._callback_lock = threading.Lock()
+
+        # 所有需要延时执行的函数的集合
         self._timeouts = []
+
         self._cancellations = 0
         self._running = False  # IOLoop是不是已经运行了
         self._stopped = False  # IOLoop是不是已经停止了，为什么有两个
@@ -632,16 +652,19 @@ class PollIOLoop(IOLoop):
         self._callbacks = None
         self._timeouts = None
 
+    # 添加一个fd（数字）和事件绑定
     def add_handler(self, fd, handler, events):
         # 添加一个注册事件 fd是文件描述符
         fd, obj = self.split_fd(fd)
         self._handlers[fd] = (obj, stack_context.wrap(handler))
         self._impl.register(fd, events | self.ERROR)
 
+    # 这里只是更新，没有检查是不是已经存在
     def update_handler(self, fd, events):
         fd, obj = self.split_fd(fd)
         self._impl.modify(fd, events | self.ERROR)
 
+    # 移除事件绑定
     def remove_handler(self, fd):
         fd, obj = self.split_fd(fd)
         self._handlers.pop(fd, None)
@@ -746,6 +769,7 @@ class PollIOLoop(IOLoop):
                                           if x.callback is not None]
                         heapq.heapify(self._timeouts)
 
+                # 如果还有回调，那么accept不能阻塞
                 if self._callbacks:
                     # If any callbacks or timeouts called add_callback,
                     # we don't want to wait in poll() before we run them.
@@ -863,6 +887,7 @@ class PollIOLoop(IOLoop):
                     stack_context.wrap(callback), *args, **kwargs))
 
 
+# 封装的一个timeout对象，包含了callback和deadline
 class _Timeout(object):
     """An IOLoop timeout, a UNIX timestamp and a callback"""
 
