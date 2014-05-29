@@ -70,6 +70,8 @@ class TimeoutError(Exception):  # 超时错误
     pass
 
 
+# 强烈建议阅读这篇博客
+# http://golubenco.org/understanding-the-code-inside-tornado-the-asynchronous-web-server-powering-friendfeed.html
 class IOLoop(Configurable):
     """A level-triggered I/O loop.
 
@@ -719,6 +721,7 @@ class PollIOLoop(IOLoop):
                 # them to be freed before we go into our poll wait.
                 callbacks = callback = None
 
+                # 有些函数需要延时运行，就是在这里检查的
                 if self._timeouts:
                     now = self.time()
                     while self._timeouts:
@@ -757,6 +760,7 @@ class PollIOLoop(IOLoop):
                     signal.setitimer(signal.ITIMER_REAL, 0, 0)
 
                 try:
+                    # 返回值 [(fd, events), (4, 1)] 基本都是数字
                     event_pairs = self._impl.poll(poll_timeout)  # 阻塞在这里
                 except Exception as e:
                     # Depending on python version and IOLoop implementation,

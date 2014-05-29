@@ -139,11 +139,11 @@ class HTTPServer(TCPServer, httputil.HTTPServerConnectionDelegate):
                  chunk_size=None, max_header_size=None,
                  idle_connection_timeout=None, body_timeout=None,
                  max_body_size=None, max_buffer_size=None):
-        self.request_callback = request_callback
+        self.request_callback = request_callback  # 回调函数
         self.no_keep_alive = no_keep_alive
         self.xheaders = xheaders
         self.protocol = protocol
-        self.conn_params = HTTP1ConnectionParameters(
+        self.conn_params = HTTP1ConnectionParameters(  # 基本的连接参数
             use_gzip=gzip,
             chunk_size=chunk_size,
             max_header_size=max_header_size,
@@ -153,8 +153,9 @@ class HTTPServer(TCPServer, httputil.HTTPServerConnectionDelegate):
         TCPServer.__init__(self, io_loop=io_loop, ssl_options=ssl_options,
                            max_buffer_size=max_buffer_size,
                            read_chunk_size=chunk_size)
-        self._connections = set()
+        self._connections = set()  # 保存全部的连接
 
+    # 关闭全部的连接
     @gen.coroutine
     def close_all_connections(self):
         while self._connections:
@@ -173,12 +174,15 @@ class HTTPServer(TCPServer, httputil.HTTPServerConnectionDelegate):
     def start_request(self, server_conn, request_conn):
         return _ServerRequestAdapter(self, request_conn)
 
+    # socket连接关闭之后的回调
     def on_close(self, server_conn):
         self._connections.remove(server_conn)
 
 
+# 保存基本的stream相关的数据
 class _HTTPRequestContext(object):
     def __init__(self, stream, address, protocol):
+        # 不明白这里的stream是一个什么对象
         self.address = address
         self.protocol = protocol
         # Save the socket's address family now so we know how to
@@ -216,6 +220,7 @@ class _HTTPRequestContext(object):
         else:
             return str(self.address)
 
+    # 启用一个功能。。。不是很清楚
     def _apply_xheaders(self, headers):
         """Rewrite the ``remote_ip`` and ``protocol`` fields."""
         # Squid uses X-Forwarded-For, others use X-Real-Ip
@@ -231,6 +236,7 @@ class _HTTPRequestContext(object):
         if proto_header in ("http", "https"):
             self.protocol = proto_header
 
+    # 回退这个功能的调用
     def _unapply_xheaders(self):
         """Undo changes from `_apply_xheaders`.
 

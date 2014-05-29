@@ -40,6 +40,8 @@ class ReturnValueIgnoredError(Exception):
     pass
 
 
+# concurrent.futures.Future的替代品，但是不是线程安全的
+# 如果有的话，默认使用线程安全的那个
 class Future(object):
     """Placeholder for an asynchronous result.
 

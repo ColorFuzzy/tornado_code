@@ -30,6 +30,8 @@ from tornado.log import gen_log, app_log
 from tornado import stack_context
 from tornado.util import GzipDecompressor
 
+
+# 基本的参数管理
 class HTTP1ConnectionParameters(object):
     """Parameters for `.HTTP1Connection` and `.HTTP1ServerConnection`.
     """
@@ -38,12 +40,22 @@ class HTTP1ConnectionParameters(object):
                  body_timeout=None, use_gzip=False):
         """
         :arg bool no_keep_alive: If true, always close the connection after
-            one request.
+            one request.  # 是否关闭连接
+        # 一次读取的字符的多少
         :arg int chunk_size: how much data to read into memory at once
+        # 头部的大小
         :arg int max_header_size:  maximum amount of data for HTTP headers
+
+        # 尝试获取头部使用多长时间
         :arg float header_timeout: how long to wait for all headers (seconds)
+
+        # body部分最大的size
         :arg int max_body_size: maximum amount of data for body
+
+        # 获取的时间长短
         :arg float body_timeout: how long to wait while reading body (seconds)
+
+        # 是否压缩，默认不压缩
         :arg bool use_gzip: if true, decode incoming ``Content-Encoding: gzip``
         """
         self.no_keep_alive = no_keep_alive
@@ -54,6 +66,8 @@ class HTTP1ConnectionParameters(object):
         self.body_timeout = body_timeout
         self.use_gzip = use_gzip
 
+
+# HTTP/1.x连接的对象
 class HTTP1Connection(httputil.HTTPConnection):
     """Implements the HTTP/1.x protocol.
 
@@ -68,12 +82,12 @@ class HTTP1Connection(httputil.HTTPConnection):
         :arg context: an opaque application-defined object that can be accessed
             as ``connection.context``.
         """
-        self.is_client = is_client
-        self.stream = stream
+        self.is_client = is_client  # 不知道为何要区分
+        self.stream = stream  # 对fd读取的一个封装
         if params is None:
             params = HTTP1ConnectionParameters()
-        self.params = params
-        self.context = context
+        self.params = params  # 连接参数
+        self.context = context  # 不明白
         self.no_keep_alive = params.no_keep_alive
         # The body limits can be altered by the delegate, so save them
         # here instead of just referencing self.params later.
@@ -88,6 +102,7 @@ class HTTP1Connection(httputil.HTTPConnection):
         self._read_finished = False
         # _finish_future resolves when all data has been written and flushed
         # to the IOStream.
+        # 这个完全不知道是做什么的。。。看看IOLoop.add_future吧
         self._finish_future = Future()
         # If true, the connection should be closed after this request
         # (after the response has been written in the server side,

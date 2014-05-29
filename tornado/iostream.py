@@ -87,6 +87,7 @@ class UnsatisfiableReadError(Exception):
     pass
 
 
+# 基本的stream对象
 class BaseIOStream(object):
     """A utility class to write to and read from a non-blocking file or socket.
 
@@ -141,6 +142,7 @@ class BaseIOStream(object):
         """Returns the file descriptor for this stream."""
         raise NotImplementedError()
 
+    # 关闭当前的文件描述符
     def close_fd(self):
         """Closes the file underlying this stream.
 
@@ -176,6 +178,7 @@ class BaseIOStream(object):
         """
         return None
 
+    # 高端，以后理解
     def read_until_regex(self, regex, callback=None, max_bytes=None):
         """Asynchronously read until we have matched the given regex.
 
@@ -204,6 +207,7 @@ class BaseIOStream(object):
             return future
         return future
 
+    # 依旧高端，以后理解
     def read_until(self, delimiter, callback=None, max_bytes=None):
         """Asynchronously read until we have found the given delimiter.
 
@@ -231,6 +235,7 @@ class BaseIOStream(object):
             return future
         return future
 
+    # 还是无法理解tornado是如何实现异步的
     def read_bytes(self, num_bytes, callback=None, streaming_callback=None,
                    partial=False):
         """Asynchronously read a number of bytes.
@@ -280,6 +285,7 @@ class BaseIOStream(object):
         self._try_inline_read()
         return future
 
+    # 异步的写，完成之后执行回调函数
     def write(self, data, callback=None):
         """Asynchronously write the given data to this stream.
 
@@ -297,20 +303,24 @@ class BaseIOStream(object):
             Now returns a `.Future` if no callback is given.
         """
         assert isinstance(data, bytes_type)
-        self._check_closed()
+        self._check_closed()  # 如果fd被关闭了，执行写操作，直接报错
+
         # We use bool(_write_buffer) as a proxy for write_buffer_size>0,
         # so never put empty strings in the buffer.
         if data:
             # Break up large contiguous strings before inserting them in the
             # write buffer, so we don't have to recopy the entire thing
             # as we slice off pieces to send to the socket.
+            # 文件太大的话，分多次写入
             WRITE_BUFFER_CHUNK_SIZE = 128 * 1024
             for i in range(0, len(data), WRITE_BUFFER_CHUNK_SIZE):
+                # self._write_buffer需要写入数据的一个列表
                 self._write_buffer.append(data[i:i + WRITE_BUFFER_CHUNK_SIZE])
         if callback is not None:
+            # 这里先把callback保存起来稍后调用
             self._write_callback = stack_context.wrap(callback)
             future = None
-        else:
+        else:  # 当然是不明白啊
             future = self._write_future = TracebackFuture()
         if not self._connecting:
             self._handle_write()
@@ -743,6 +753,8 @@ class BaseIOStream(object):
 
     def _handle_write(self):
         while self._write_buffer:
+            # 这里的写操作是不是阻塞的，会不会影响整体的性能
+            # 同样的一个地方就是读的操作，似乎也会影响整体的性能
             try:
                 if not self._write_buffer_frozen:
                     # On windows, socket.send blows up if given a
