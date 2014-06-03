@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2014 Facebook
@@ -607,6 +608,8 @@ class HTTP1ServerConnection(object):
         assert isinstance(delegate, httputil.HTTPServerConnectionDelegate)
         self._serving_future = self._server_request_loop(delegate)
         # Register the future on the IOLoop so its errors get logged.
+        # 好像是添加到以后处理，已经添加到了IOLoop里面了，这个注释是这个过来的：在初始化的时候，看到了accept
+        # 的一个callback，好像就是accept这个请求之后就把这个connection添加到了IOLoop进行监控
         self.stream.io_loop.add_future(self._serving_future,
                                        lambda f: f.result())
 

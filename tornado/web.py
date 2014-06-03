@@ -141,6 +141,7 @@ May be overrided by passing a ``min_version`` keyword argument.
 """
 
 
+# 每一个请求过来之后，对它进行处理的一个对象的封装
 class RequestHandler(object):
     """Subclass this class and define `get()` or `post()` to make a handler.
 
@@ -1551,6 +1552,7 @@ def addslash(method):
     return wrapper
 
 
+# 多个handler组成的一个程序
 class Application(httputil.HTTPServerConnectionDelegate):
     """A collection of request handlers that make up a web application.
 
@@ -1665,8 +1667,10 @@ class Application(httputil.HTTPServerConnectionDelegate):
         # import is here rather than top level because HTTPServer
         # is not importable on appengine
         from tornado.httpserver import HTTPServer
+
+        # 创建一个server，初始化了基本的tcp服务器和http服务器的参数
         server = HTTPServer(self, **kwargs)
-        server.listen(port, address)
+        server.listen(port, address)  # 调用了tcp服务器的listen函数
 
     def add_handlers(self, host_pattern, host_handlers):
         """Appends the given handlers to our handler list.

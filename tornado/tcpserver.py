@@ -35,6 +35,7 @@ except ImportError:
     # ssl is not available on Google App Engine.
     ssl = None
 
+
 # 非阻塞单线程TCP服务器
 class TCPServer(object):
     r"""A non-blocking, single-threaded TCP server.
@@ -91,11 +92,15 @@ class TCPServer(object):
     .. versionadded:: 3.1
        The ``max_buffer_size`` argument.
     """
+    # 初始化的过程只是初始化了一些变量，没有任何实质的东西
     def __init__(self, io_loop=None, ssl_options=None, max_buffer_size=None,
                  read_chunk_size=None):
         self.io_loop = io_loop  # 检测使用的循环
         self.ssl_options = ssl_options
+
+        # 基本上就是监听的sock的集合，key是一个fd的整数，value就是这个socket对象了
         self._sockets = {}  # fd -> socket object， 需要检测的fd的集合
+
         self._pending_sockets = []  # 需要监听，但是还没有监听的sockets
         self._started = False  # 是否开始了
         self.max_buffer_size = max_buffer_size
@@ -119,7 +124,7 @@ class TCPServer(object):
                 raise ValueError('keyfile "%s" does not exist' %
                                  self.ssl_options['keyfile'])
 
-    # 开始监听端口
+    # 开始监听指定的端口号
     def listen(self, port, address=""):
         """Starts accepting connections on the given port.
 
@@ -129,10 +134,12 @@ class TCPServer(object):
         the `.IOLoop`.
         """
         # 创建需要监听的socket对象
+        # 如果只是指定了一个port 8888，那么mac平台会返回两个需要监听的socket，所以不只是一个
+        # 这里的sockets已经开始监听了，而且创建成功了，就差添加到IOLoop里面了
         sockets = bind_sockets(port, address=address)
         self.add_sockets(sockets)  # 将需要监听的对象添加到IOLoop里面
 
-    # 这个函数只是添加监听别的连接进来的那个socket
+    # 这个函数只是添加监听别的连接进来的那个socket，添加监听的socket
     # 连接进来之后新建的socket不是使用这个函数添加的
     def add_sockets(self, sockets):
         """Makes this server start accepting connections on the given sockets.
@@ -228,13 +235,18 @@ class TCPServer(object):
             self.io_loop.remove_handler(fd)
             sock.close()
 
-    # 很显然我没有完全理解
+    # 初始化的时候，如果一个连接进来了，会调用HTTPServer的这个函数，看看TCPServer是如何处理accept请求的
     def handle_stream(self, stream, address):
         """Override to handle a new `.IOStream` from an incoming connection."""
         raise NotImplementedError()
 
+    # 当新的连接进来之后，被accpet了，获得了connection和address，然后执行这个callback函数
+    # 这里把connection变成了一个IOStream对象，然后调用handle_stream处理这个请求的，
+    # 这个函数的功能在HTTP服务器那里实现的，tcp服务器只是编写了一个模型
     def _handle_connection(self, connection, address):
         # 如果可以的话，启用ssl
+        # address = ('127.0.0.1', 63959)
+        # connection : socket object
         if self.ssl_options is not None:
             assert ssl, "Python 2.6+ and OpenSSL required for SSL"
             try:
@@ -268,9 +280,11 @@ class TCPServer(object):
                                      max_buffer_size=self.max_buffer_size,
                                      read_chunk_size=self.read_chunk_size)
             else:
+                # 根据connection获得一个IOStream的对象，便于数据的读取
                 stream = IOStream(connection, io_loop=self.io_loop,
                                   max_buffer_size=self.max_buffer_size,
                                   read_chunk_size=self.read_chunk_size)
+            # 开始处理进来的数据连接
             self.handle_stream(stream, address)
         except Exception:
             app_log.error("Error in connection callback", exc_info=True)

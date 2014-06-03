@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2009 Facebook
@@ -139,7 +140,10 @@ class HTTPServer(TCPServer, httputil.HTTPServerConnectionDelegate):
                  chunk_size=None, max_header_size=None,
                  idle_connection_timeout=None, body_timeout=None,
                  max_body_size=None, max_buffer_size=None):
-        self.request_callback = request_callback  # 回调函数
+
+        # 回调对象，一个application对象，具有handlers的list
+        self.request_callback = request_callback
+
         self.no_keep_alive = no_keep_alive
         self.xheaders = xheaders
         self.protocol = protocol
@@ -167,9 +171,9 @@ class HTTPServer(TCPServer, httputil.HTTPServerConnectionDelegate):
         context = _HTTPRequestContext(stream, address,
                                       self.protocol)
         conn = HTTP1ServerConnection(
-            stream, self.conn_params, context)
-        self._connections.add(conn)
-        conn.start_serving(self)
+            stream, self.conn_params, context)  # 创建连接对象
+        self._connections.add(conn)  # 保存连接对象
+        conn.start_serving(self)  # 开始服务这个连接
 
     def start_request(self, server_conn, request_conn):
         return _ServerRequestAdapter(self, request_conn)

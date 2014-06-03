@@ -1,3 +1,4 @@
+# coding: utf-8
 """``tornado.gen`` is a generator-based interface to make it easier to
 work in an asynchronous environment.  Code using the ``gen`` module
 is technically asynchronous, but it is written as a single generator
@@ -116,6 +117,7 @@ class TimeoutError(Exception):
     """Exception raised by ``with_timeout``."""
 
 
+# 历史遗留的函数，这里不需要了，以后统统使用 coroutine
 def engine(func):
     """Callback-oriented decorator for asynchronous generators.
 

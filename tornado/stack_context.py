@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2010 Facebook
@@ -250,6 +251,7 @@ def _remove_deactivated(contexts):
     return (stack_contexts, head)
 
 
+# 保存函数当前的context，以后执行的时候，同样使用这个context
 def wrap(fn):
     """Returns a callable object that will restore the current `StackContext`
     when executed.

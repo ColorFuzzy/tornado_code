@@ -138,6 +138,7 @@ class BaseIOStream(object):
         self._pending_callbacks = 0
         self._closed = False
 
+    # 一边的socket对象有自己的，这里可能是为了兼容其他的对象，所以作为一个独立的方法出现
     def fileno(self):  # 返回当前的文件描述符
         """Returns the file descriptor for this stream."""
         raise NotImplementedError()

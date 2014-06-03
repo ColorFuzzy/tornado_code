@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2012 Facebook
@@ -185,6 +186,7 @@ if futures is None:
     FUTURES = Future
 else:
     FUTURES = (futures.Future, Future)
+
 
 def is_future(x):
     return isinstance(x, FUTURES)

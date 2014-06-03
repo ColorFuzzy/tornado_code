@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2011 Facebook
@@ -25,6 +26,7 @@ from tornado.platform import interface
 
 
 def set_close_exec(fd):
+    # 估计是在程序退出的时候需要关闭的fd
     flags = fcntl.fcntl(fd, fcntl.F_GETFD)
     fcntl.fcntl(fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
 

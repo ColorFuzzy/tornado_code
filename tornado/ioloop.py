@@ -161,7 +161,7 @@ class IOLoop(Configurable):
         if not hasattr(IOLoop, "_instance"):
             with IOLoop._instance_lock:  # 获取和释放的管理器，保证多线程只创建一次
                 if not hasattr(IOLoop, "_instance"):
-                    # New instance after double check
+                    # New instance after double check，伟大的事业，创建IOLoop
                     IOLoop._instance = IOLoop()
         return IOLoop._instance
 
@@ -193,7 +193,7 @@ class IOLoop(Configurable):
 
     # 这里不明白为何要区分某一个线程的IOLoop，本来不是只有一个的么
     @staticmethod
-    def current():  # 返回当前线程的_instance
+    def current():  # 返回当前线程的_instance，也就是IOLoop
         """Returns the current thread's `IOLoop`.
 
         If an `IOLoop` is currently running or has been marked as current
@@ -635,7 +635,10 @@ class PollIOLoop(IOLoop):
 
         # Create a pipe that we send bogus data to when we want to wake
         # the I/O loop when it is idle
+        # 这个真心不懂，以后研究
         self._waker = Waker()
+
+        # 初始化的时候添加self._waker的一个读得socket到IOLoop里面
         self.add_handler(self._waker.fileno(),
                          lambda fd, events: self._waker.consume(),
                          self.READ)
@@ -655,8 +658,12 @@ class PollIOLoop(IOLoop):
     # 添加一个fd（数字）和事件绑定
     def add_handler(self, fd, handler, events):
         # 添加一个注册事件 fd是文件描述符
-        fd, obj = self.split_fd(fd)
+        fd, obj = self.split_fd(fd)  # 通过fd对象，返回数字和fd对象
+
+        # 需要监听的fd整数和fd对象与handler的对应
         self._handlers[fd] = (obj, stack_context.wrap(handler))
+
+        # 注册相关的事件，加入通知
         self._impl.register(fd, events | self.ERROR)
 
     # 这里只是更新，没有检查是不是已经存在
@@ -684,6 +691,7 @@ class PollIOLoop(IOLoop):
             signal.signal(signal.SIGALRM,
                           action if action is not None else signal.SIG_DFL)
 
+    # 初始化的最后一步就是到这个地方了，已经把监听的accept添加进去了，同时添加了一个额外的fd，不知道干嘛的
     def start(self):
         if self._running:
             raise RuntimeError("IOLoop is already running")
@@ -785,6 +793,7 @@ class PollIOLoop(IOLoop):
 
                 try:
                     # 返回值 [(fd, events), (4, 1)] 基本都是数字
+                    # 初始化到这里之后，后面的基本就是如何处理请求进来的连接了，起码一个部分的任务搞定了
                     event_pairs = self._impl.poll(poll_timeout)  # 阻塞在这里
                 except Exception as e:
                     # Depending on python version and IOLoop implementation,
@@ -805,10 +814,14 @@ class PollIOLoop(IOLoop):
                 # its handler. Since that handler may perform actions on
                 # other file descriptors, there may be reentrant calls to
                 # this IOLoop that update self._events
+                # 一个连接刚刚进来的时候，event pairs是[(5, 1)] = 此时的事件需要accept
                 self._events.update(event_pairs)
+
+                # 开始处理的地方
                 while self._events:
                     fd, events = self._events.popitem()
                     try:
+                        # 获取socket对应的处理函数
                         fd_obj, handler_func = self._handlers[fd]
                         handler_func(fd_obj, events)
                     except (OSError, IOError) as e:

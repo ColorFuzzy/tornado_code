@@ -165,6 +165,10 @@ def errno_from_exception(e):
         return None
 
 
+# 如果是在创建IOLoop的时候，需要注意的东西如下
+# 1. IOLoop继承了这个类，那么创建IOLoop之前需要先运行这个类的__new__函数
+# 2. 这个函数创建的实例就是IOLoop本身，其他地方的函数都是对这个实例的补充
+# 3. 一般的类使用__new__创建的不过就是一个object的实例
 class Configurable(object):
     """Base class for configurable interfaces.
 
@@ -192,10 +196,13 @@ class Configurable(object):
         # ubuntu里面
         # cls是IOLoop base是IOLoop
         # impl是EPollIOLoop
-        base = cls.configurable_base()  # 调用IOLoop的函数，返回IOLoop类
+
+        # 调用IOLoop的函数，返回IOLoop类，IOLoop类也是一个对象，它的实例也是一个对象
+        # 这里虽然没有创建实例对象，但是类对象本身是已经创建了的
+        base = cls.configurable_base()
         args = {}
         if cls is base:
-            impl = cls.configured_class()
+            impl = cls.configured_class()  # 获取真正的对象的类
             if base.__impl_kwargs:
                 args.update(base.__impl_kwargs)
         else:

@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2011 Facebook
@@ -58,6 +59,8 @@ u('foo').encode('idna')
 _ERRNO_WOULDBLOCK = (errno.EWOULDBLOCK, errno.EAGAIN)
 
 
+# 1. 创建了监听的socket
+# 2. 监听的socket开始listen了
 def bind_sockets(port, address=None, family=socket.AF_UNSPEC, backlog=128, flags=None):
     """Creates listening sockets bound to the given port and address.
 
@@ -104,6 +107,7 @@ def bind_sockets(port, address=None, family=socket.AF_UNSPEC, backlog=128, flags
             # application). Skip these addresses.
             continue
         try:
+            # 创建socket
             sock = socket.socket(af, socktype, proto)
         except socket.error as e:
             if errno_from_exception(e) == errno.EAFNOSUPPORT:
@@ -131,11 +135,11 @@ def bind_sockets(port, address=None, family=socket.AF_UNSPEC, backlog=128, flags
             sockaddr = tuple([host, bound_port] + list(sockaddr[2:]))
 
         sock.setblocking(0)
-        sock.bind(sockaddr)
+        sock.bind(sockaddr)  # 绑定监听地址
         bound_port = sock.getsockname()[1]
-        sock.listen(backlog)
-        sockets.append(sock)
-    return sockets
+        sock.listen(backlog)  # 启用监听
+        sockets.append(sock)  # 创建完成并添加
+    return sockets  # 返回创建的sockets列表
 
 if hasattr(socket, 'AF_UNIX'):
     def bind_unix_socket(file, mode=0o600, backlog=128):
@@ -168,6 +172,7 @@ if hasattr(socket, 'AF_UNIX'):
         return sock
 
 
+# callback 是 TCPServer._handle_connection
 def add_accept_handler(sock, callback, io_loop=None):
     """Adds an `.IOLoop` event handler to accept new connections on ``sock``.
 
@@ -181,12 +186,16 @@ def add_accept_handler(sock, callback, io_loop=None):
         io_loop = IOLoop.current()
 
     def accept_handler(fd, events):
+        # 这个的关键是，如果有新的连接进来了，这个函数处理了
         while True:
             try:
+                # 当可读的时候，这个函数执行了，于是开始接受连接
+                # address = connection.getpeername()
                 connection, address = sock.accept()
             except socket.error as e:
                 # _ERRNO_WOULDBLOCK indicate we have accepted every
                 # connection that is available.
+                # 如果可能导致阻塞，这里直接返回了
                 if errno_from_exception(e) in _ERRNO_WOULDBLOCK:
                     return
                 # ECONNABORTED indicates that there was a connection
@@ -195,8 +204,9 @@ def add_accept_handler(sock, callback, io_loop=None):
                 if errno_from_exception(e) == errno.ECONNABORTED:
                     continue
                 raise
-            callback(connection, address)
+            callback(connection, address)  # 一个连接进来之后，调用TCP服务器的处理函数
     io_loop.add_handler(sock, accept_handler, IOLoop.READ)
+    # sock 需要监听的socket accept_handler回调函数 监听的状态
 
 
 def is_valid_ip(ip):
