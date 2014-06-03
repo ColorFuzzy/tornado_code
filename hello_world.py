@@ -14,4 +14,7 @@ application = tornado.web.Application([
 
 if __name__ == "__main__":
     application.listen(8888)  # 创建好了监听的socket和开始listen了
+    
+    # 如果有一个地方raise error了，那么如何处理呢？？？
+    # 会什么能够继续执行呢？？？？这个需要好好的处理一下
     tornado.ioloop.IOLoop.instance().start()  # 开始accept和循环吧

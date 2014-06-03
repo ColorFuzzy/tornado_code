@@ -80,6 +80,10 @@ class StackContextInconsistentError(Exception):
     pass
 
 
+# 注释很重要
+# If you want actual thread-local storage, that's where threading.local
+# comes in. Attributes of threading.local are not shared between threads;
+# each thread sees only the attributes it itself placed in there.
 class _State(threading.local):
     def __init__(self):
         self.contexts = (tuple(), None)
@@ -107,7 +111,7 @@ class StackContext(object):
     and not necessary in most applications.
     """
     def __init__(self, context_factory):
-        self.context_factory = context_factory
+        self.context_factory = context_factory  # 传进来的函数
         self.contexts = []
         self.active = True
 
@@ -116,17 +120,19 @@ class StackContext(object):
 
     # StackContext protocol
     def enter(self):
+        # 进去之前添加生成的context到self.contexts列表
         context = self.context_factory()
         self.contexts.append(context)
-        context.__enter__()
+        context.__enter__()  # 这个是返回值的一个enter，不是这个类自己的
 
     def exit(self, type, value, traceback):
         context = self.contexts.pop()
-        context.__exit__(type, value, traceback)
+        context.__exit__(type, value, traceback)  # 手动的退出一下
 
     # Note that some of this code is duplicated in ExceptionStackContext
     # below.  ExceptionStackContext is more common and doesn't need
     # the full generality of this class.
+    # 这个是这个类自己的管理器
     def __enter__(self):
         self.old_contexts = _state.contexts
         self.new_contexts = (self.old_contexts[0] + (self,), self)

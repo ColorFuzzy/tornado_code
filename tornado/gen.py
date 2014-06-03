@@ -113,9 +113,9 @@ class ReturnValueIgnoredError(Exception):
     pass
 
 
-# 这他妈是什么狗屁语法
 class TimeoutError(Exception):
     """Exception raised by ``with_timeout``."""
+    pass
 
 
 # 历史遗留的函数，这里不需要了，以后统统使用 coroutine
