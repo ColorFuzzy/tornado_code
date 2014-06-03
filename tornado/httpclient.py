@@ -46,6 +46,7 @@ from tornado.ioloop import IOLoop
 from tornado.util import Configurable
 
 
+# 一个阻塞的http client客户端，一般不使用，大多使用AsyncHTTPClient
 class HTTPClient(object):
     """A blocking HTTP client.
 

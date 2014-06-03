@@ -113,6 +113,7 @@ class ReturnValueIgnoredError(Exception):
     pass
 
 
+# 这他妈是什么狗屁语法
 class TimeoutError(Exception):
     """Exception raised by ``with_timeout``."""
 
@@ -184,7 +185,7 @@ def _make_coroutine_wrapper(func, replace_callback):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        future = TracebackFuture()
+        future = TracebackFuture()  # 一个future的跟踪对象
 
         if replace_callback and 'callback' in kwargs:
             callback = kwargs.pop('callback')
@@ -192,7 +193,7 @@ def _make_coroutine_wrapper(func, replace_callback):
                 future, lambda future: callback(future.result()))
 
         try:
-            result = func(*args, **kwargs)
+            result = func(*args, **kwargs)  # 尝试运行函数
         except (Return, StopIteration) as e:
             result = getattr(e, 'value', None)
         except Exception:

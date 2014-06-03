@@ -76,7 +76,7 @@ class Future(object):
         self._result = None
         self._exception = None
         self._exc_info = None
-        self._callbacks = []
+        self._callbacks = []  # 回调函数集合
 
     def cancel(self):
         """Cancel the operation, if possible.
