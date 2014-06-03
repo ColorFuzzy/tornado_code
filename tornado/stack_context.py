@@ -216,6 +216,7 @@ class ExceptionStackContext(object):
             self.new_contexts = None
 
 
+# 临时使用一个空的context
 class NullContext(object):
     """Resets the `StackContext`.
 
@@ -233,11 +234,13 @@ class NullContext(object):
 
 def _remove_deactivated(contexts):
     """Remove deactivated handlers from the chain"""
+    # 基本可以认为这里的contexts就是 _state.contexts => (tuple(), None)
     # Clean ctx handlers
+    # 保留active的，但是但是什么时候给contexts添加的元素呢，则个很不明白啊
     stack_contexts = tuple([h for h in contexts[0] if h.active])
 
     # Find new head
-    head = contexts[1]
+    head = contexts[1]  # 当然不明白了
     while head is not None and not head.active:
         head = head.old_contexts[1]
 
@@ -262,22 +265,24 @@ def wrap(fn):
     """Returns a callable object that will restore the current `StackContext`
     when executed.
 
+    # 如果一个callback需要延后执行，最好包裹一下
     Use this whenever saving a callback to be executed later in a
     different execution context (either in a different thread or
     asynchronously in the same thread).
     """
     # Check if function is already wrapped
-    if fn is None or hasattr(fn, '_wrapped'):
+    if fn is None or hasattr(fn, '_wrapped'):  # 添加了已经包裹的标记
         return fn
 
     # Capture current stack head
     # TODO: Any other better way to store contexts and update them in wrapped function?
-    cap_contexts = [_state.contexts]
+    cap_contexts = [_state.contexts]  # 保存
 
+    # 如果context是空的
     if not cap_contexts[0][0] and not cap_contexts[0][1]:
         # Fast path when there are no active contexts.
         def null_wrapper(*args, **kwargs):
-            try:
+            try:  # 完全不明白为什么写这么罗嗦
                 current_state = _state.contexts
                 _state.contexts = cap_contexts[0]
                 return fn(*args, **kwargs)
