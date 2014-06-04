@@ -165,6 +165,7 @@ class AsyncHTTPClient(Configurable):
         if self._async_clients().get(self.io_loop) is self:
             del self._async_clients()[self.io_loop]
 
+    # 这个异常的重要啊
     def fetch(self, request, callback=None, **kwargs):
         """Executes a request, asynchronously returning an `HTTPResponse`.
 
@@ -176,6 +177,7 @@ class AsyncHTTPClient(Configurable):
         `HTTPResponse`.  The ``Future`` will raise an `HTTPError` if
         the request returned a non-200 response code.
 
+        如果添加了callback，那么不会有一个自动抛出的异常
         If a ``callback`` is given, it will be invoked with the `HTTPResponse`.
         In the callback interface, `HTTPError` is not automatically raised.
         Instead, you must check the response's ``error`` attribute or

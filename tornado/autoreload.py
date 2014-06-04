@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2009 Facebook
@@ -118,8 +119,10 @@ def start(io_loop=None, check_time=500):
     add_reload_hook(functools.partial(io_loop.close, all_fds=True))
     modify_times = {}
     callback = functools.partial(_reload_on_update, modify_times)
+
+    # 创建并开始一个循环
     scheduler = ioloop.PeriodicCallback(callback, check_time, io_loop=io_loop)
-    scheduler.start()
+    scheduler.start()  # 添加到timeout里面去了
 
 
 def wait():

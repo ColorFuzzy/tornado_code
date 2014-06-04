@@ -260,7 +260,6 @@ def _remove_deactivated(contexts):
     return (stack_contexts, head)
 
 
-# 保存函数当前的context，以后执行的时候，同样使用这个context
 def wrap(fn):
     """Returns a callable object that will restore the current `StackContext`
     when executed.
@@ -276,9 +275,9 @@ def wrap(fn):
 
     # Capture current stack head
     # TODO: Any other better way to store contexts and update them in wrapped function?
-    cap_contexts = [_state.contexts]  # 保存
+    cap_contexts = [_state.contexts]  # 保存stack的context
 
-    # 如果context是空的
+    # 如果_state.context是空的
     if not cap_contexts[0][0] and not cap_contexts[0][1]:
         # Fast path when there are no active contexts.
         def null_wrapper(*args, **kwargs):
@@ -288,7 +287,7 @@ def wrap(fn):
                 return fn(*args, **kwargs)
             finally:
                 _state.contexts = current_state
-        null_wrapper._wrapped = True
+        null_wrapper._wrapped = True  # 函数属性
         return null_wrapper
 
     def wrapped(*args, **kwargs):

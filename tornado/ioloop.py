@@ -515,6 +515,12 @@ pp        except from a signal handler.  Note that this is the **only**
         """
         raise NotImplementedError()
 
+    # wrap里面的callback
+    # IOLoop.current().add_future(future,
+    #                             lambda future: callback(future.result()))
+    # callback也是一个回调函数，lambda函数里面的future是一个变量，没有确定
+    # 这个add_future函数只是给future添加了一个如果future执行成功之后的回调：
+    # 也就是future没有执行成功的话，不会给IOLoop._callbacks添加任何的元素！！！
     def add_future(self, future, callback):
         """Schedules a callback on the ``IOLoop`` when the given
         `.Future` is finished.
@@ -522,8 +528,12 @@ pp        except from a signal handler.  Note that this is the **only**
         The callback is invoked with one argument, the
         `.Future`.
         """
-        assert is_future(future)
-        callback = stack_context.wrap(callback)
+        assert is_future(future)  # 判定是不是future类型
+        callback = stack_context.wrap(callback)  # 包裹一下，二次包裹直接跳过
+
+        # 给future添加一个成功后的回调函数
+        # 这句话的功能是：如果这个future执行完毕了，lambda函数会被添加到IOLoop._callbacks
+        # 现在的问题是：future执行完毕这个事件是如何捕获的？？？？？？？？
         future.add_done_callback(
             lambda future: self.add_callback(callback, future))
 
@@ -865,11 +875,15 @@ class PollIOLoop(IOLoop):
         timeout.callback = None
         self._cancellations += 1
 
+    # 给IOLoop添加一个回调函数
     def add_callback(self, callback, *args, **kwargs):
         with self._callback_lock:
             if self._closing:
                 raise RuntimeError("IOLoop is closing")
             list_empty = not self._callbacks
+
+            # 给self._callbacks添加回调函数
+            # 这里把args和kwargs的消息封装到了callback的属性里面了，然后可以直接运行了
             self._callbacks.append(functools.partial(
                 stack_context.wrap(callback), *args, **kwargs))
             if list_empty and thread.get_ident() != self._thread_ident:
@@ -938,6 +952,7 @@ class _Timeout(object):
                 (other.deadline, id(other)))
 
 
+# 添加一个定时运行的timeout到ioloop循环里面，这个不是由ioloop监控，只是借用了那个循环而已
 class PeriodicCallback(object):
     """Schedules the given callback to be called periodically.
 
@@ -946,10 +961,10 @@ class PeriodicCallback(object):
     `start` must be called after the `PeriodicCallback` is created.
     """
     def __init__(self, callback, callback_time, io_loop=None):
-        self.callback = callback
+        self.callback = callback  # 回调函数
         if callback_time <= 0:
             raise ValueError("Periodic callback must have a positive callback_time")
-        self.callback_time = callback_time
+        self.callback_time = callback_time  # 间隔的时间
         self.io_loop = io_loop or IOLoop.current()
         self._running = False
         self._timeout = None
@@ -981,4 +996,6 @@ class PeriodicCallback(object):
             current_time = self.io_loop.time()
             while self._next_timeout <= current_time:
                 self._next_timeout += self.callback_time / 1000.0
+
+            # 这里的回调函数是关键，每次自己运行之后，都会继续添加一个timeout进来
             self._timeout = self.io_loop.add_timeout(self._next_timeout, self._run)

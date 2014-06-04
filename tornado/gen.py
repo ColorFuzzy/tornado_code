@@ -119,34 +119,35 @@ class TimeoutError(Exception):
 
 
 # 历史遗留的函数，这里不需要了，以后统统使用 coroutine
-def engine(func):
-    """Callback-oriented decorator for asynchronous generators.
-
-    This is an older interface; for new code that does not need to be
-    compatible with versions of Tornado older than 3.0 the
-    `coroutine` decorator is recommended instead.
-
-    This decorator is similar to `coroutine`, except it does not
-    return a `.Future` and the ``callback`` argument is not treated
-    specially.
-
-    In most cases, functions decorated with `engine` should take
-    a ``callback`` argument and invoke it with their result when
-    they are finished.  One notable exception is the
-    `~tornado.web.RequestHandler` :ref:`HTTP verb methods <verbs>`,
-    which use ``self.finish()`` in place of a callback argument.
-    """
-    func = _make_coroutine_wrapper(func, replace_callback=False)
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        future = func(*args, **kwargs)
-        def final_callback(future):
-            if future.result() is not None:
-                raise ReturnValueIgnoredError(
-                    "@gen.engine functions cannot return values: %r" %
-                    (future.result(),))
-        future.add_done_callback(final_callback)
-    return wrapper
+# 看着碍眼，暂时注释了
+# def engine(func):
+#     """Callback-oriented decorator for asynchronous generators.
+#
+#     This is an older interface; for new code that does not need to be
+#     compatible with versions of Tornado older than 3.0 the
+#     `coroutine` decorator is recommended instead.
+#
+#     This decorator is similar to `coroutine`, except it does not
+#     return a `.Future` and the ``callback`` argument is not treated
+#     specially.
+#
+#     In most cases, functions decorated with `engine` should take
+#     a ``callback`` argument and invoke it with their result when
+#     they are finished.  One notable exception is the
+#     `~tornado.web.RequestHandler` :ref:`HTTP verb methods <verbs>`,
+#     which use ``self.finish()`` in place of a callback argument.
+#     """
+#     func = _make_coroutine_wrapper(func, replace_callback=False)
+#     @functools.wraps(func)
+#     def wrapper(*args, **kwargs):
+#         future = func(*args, **kwargs)
+#         def final_callback(future):
+#             if future.result() is not None:
+#                 raise ReturnValueIgnoredError(
+#                     "@gen.engine functions cannot return values: %r" %
+#                     (future.result(),))
+#         future.add_done_callback(final_callback)
+#     return wrapper
 
 
 def coroutine(func, replace_callback=True):
@@ -176,6 +177,7 @@ def coroutine(func, replace_callback=True):
     return _make_coroutine_wrapper(func, replace_callback=True)
 
 
+# 读懂这个函数之前，先看看http的那个异步是如何实现的，同时看看IOStream的异步是如何实现的
 def _make_coroutine_wrapper(func, replace_callback):
     """The inner workings of ``@gen.coroutine`` and ``@gen.engine``.
 
@@ -185,21 +187,27 @@ def _make_coroutine_wrapper(func, replace_callback):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        future = TracebackFuture()  # 一个future的跟踪对象
+        future = TracebackFuture()  # 一个future的跟踪对象，这个是关键
 
         if replace_callback and 'callback' in kwargs:
             callback = kwargs.pop('callback')
+            # 这个add_future函数只是给future添加了一个如果future执行成功之后的回调：
+            # 也就是future没有执行成功的话，不会给IOLoop._callbacks添加任何的元素！！！
             IOLoop.current().add_future(
                 future, lambda future: callback(future.result()))
 
+        # 异步的HTTP和异步的IOStream也许返回的类型不一样，
+        # 感觉两个异步的东西才是tornado的关键
         try:
-            result = func(*args, **kwargs)  # 尝试运行函数
+            result = func(*args, **kwargs)  # 尝试运行函数，这里会yield出来，所以不会被阻塞的
         except (Return, StopIteration) as e:
-            result = getattr(e, 'value', None)
-        except Exception:
+            result = getattr(e, 'value', None)  # 这个以后慢慢的阅读
+        except Exception:  # 如果出错的话
+            # 运行出错了,这个时候依旧会添加到IOLoop._callbacks
             future.set_exc_info(sys.exc_info())
-            return future
+            return future  # 返回一个future是干毛啊，以后再说吧
         else:
+            # yield一个 types.GeneratorType
             if isinstance(result, types.GeneratorType):
                 # Inline the first iteration of Runner.run.  This lets us
                 # avoid the cost of creating a Runner when the coroutine
@@ -208,7 +216,7 @@ def _make_coroutine_wrapper(func, replace_callback):
                 # performance penalty for the synchronous case.
                 try:
                     orig_stack_contexts = stack_context._state.contexts
-                    yielded = next(result)
+                    yielded = next(result)  # 获取yield的结果
                     if stack_context._state.contexts is not orig_stack_contexts:
                         yielded = TracebackFuture()
                         yielded.set_exception(
@@ -222,8 +230,8 @@ def _make_coroutine_wrapper(func, replace_callback):
                 else:
                     Runner(result, future, yielded)
                 return future
-        future.set_result(result)
-        return future
+        future.set_result(result)  # 这个时候添加回调到了IOLoop
+        return future  # 好吧，依旧是返回future
     return wrapper
 
 

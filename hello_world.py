@@ -17,4 +17,5 @@ if __name__ == "__main__":
     
     # 如果有一个地方raise error了，那么如何处理呢？？？
     # 会什么能够继续执行呢？？？？这个需要好好的处理一下
+    # raise error之后没有捕获 为什么会继续呢？就是为什么没有停止这个线程
     tornado.ioloop.IOLoop.instance().start()  # 开始accept和循环吧
