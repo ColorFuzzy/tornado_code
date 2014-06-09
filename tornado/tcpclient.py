@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 #
 # Copyright 2014 Facebook
@@ -165,7 +166,7 @@ class TCPClient(object):
         # TODO: For better performance we could cache the (af, addr)
         # information here and re-use it on sbusequent connections to
         # the same host. (http://tools.ietf.org/html/rfc6555#section-4.2)
-        raise gen.Return(stream)
+        raise gen.Return(stream)  # 这里gen会捕获这个错误
 
     def _create_stream(self, host, ssl_options, max_buffer_size, af, addr):
         # TODO: we should connect in plaintext mode and start the

@@ -95,6 +95,7 @@ from tornado.util import Configurable
 #         return response
 
 
+# 一般只有一个实例，分析一下，多个fetch是如何实现的
 class AsyncHTTPClient(Configurable):
     """An non-blocking HTTP client.
 
@@ -134,6 +135,7 @@ class AsyncHTTPClient(Configurable):
             setattr(cls, attr_name, weakref.WeakKeyDictionary())
         return getattr(cls, attr_name)
 
+    # 创建一个AsyncHTTPClient对象
     def __new__(cls, io_loop=None, force_instance=False, **kwargs):
         io_loop = io_loop or IOLoop.current()
         if io_loop in cls._async_clients() and not force_instance:
@@ -153,6 +155,7 @@ class AsyncHTTPClient(Configurable):
         if defaults is not None:
             self.defaults.update(defaults)
 
+    # 不知道做什么的，感觉就是后期清理垃圾使用的
     def close(self):
         """Destroys this HTTP client, freeing any file descriptors used.
 
@@ -169,7 +172,7 @@ class AsyncHTTPClient(Configurable):
         if self._async_clients().get(self.io_loop) is self:
             del self._async_clients()[self.io_loop]
 
-    # 这个异常的重要啊，仔细看看这里是如何实现异步的，如何形成fd的
+    # *这个异常的重要啊，仔细看看这里是如何实现异步的，如何形成fd的*
     def fetch(self, request, callback=None, **kwargs):
         """Executes a request, asynchronously returning an `HTTPResponse`.
 
@@ -193,10 +196,14 @@ class AsyncHTTPClient(Configurable):
         # We may modify this (to add Host, Accept-Encoding, etc),
         # so make sure we don't modify the caller's object.  This is also
         # where normal dicts get converted to HTTPHeaders objects.
-        # 构建headers
+        # 构建headers，封装的一个类，处理起来比较方便
         request.headers = httputil.HTTPHeaders(request.headers)
+
+        # request.request, request.defaults
         request = _RequestProxy(request, self.defaults)
         future = TracebackFuture()
+
+        # 这个callback先放过
         if callback is not None:
             callback = stack_context.wrap(callback)
 
@@ -224,6 +231,7 @@ class AsyncHTTPClient(Configurable):
         # 返回一个future类型
         return future
 
+    # *另外一个很不错的函数*
     def fetch_impl(self, request, callback):
         raise NotImplementedError()
 

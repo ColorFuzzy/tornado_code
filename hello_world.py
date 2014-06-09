@@ -1,11 +1,16 @@
 # coding: utf-8
 import tornado.ioloop
 import tornado.web
+from tornado.httpclient import AsyncHTTPClient
+from tornado import gen
 
 
 # 这里只是一个一个类的声明，看看实例化的地方才是重点
 class MainHandler(tornado.web.RequestHandler):
+    @gen.coroutine
     def get(self):
+        client = AsyncHTTPClient()
+        response = yield client.fetch("http://www.baidu.com")
         self.write("Hello, world")
 
 application = tornado.web.Application([

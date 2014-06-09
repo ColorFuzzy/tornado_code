@@ -1,3 +1,4 @@
+# coding: utf-8
 #!/usr/bin/env python
 from __future__ import absolute_import, division, print_function, with_statement
 
@@ -59,11 +60,14 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
     are not reused, and callers cannot select the network interface to be
     used.
     """
+
+    # AsyncHTTPClient初始化之后调用的是这个initialize函数
     def initialize(self, io_loop, max_clients=10,
                    hostname_mapping=None, max_buffer_size=104857600,
                    resolver=None, defaults=None, max_header_size=None):
         """Creates a AsyncHTTPClient.
 
+        # 一个IOLoop实例只有一个AsyncHTTPClient实例
         Only a single AsyncHTTPClient instance exists per IOLoop
         in order to provide limitations on the number of pending connections.
         force_instance=True may be used to suppress this behavior.
@@ -83,14 +87,16 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
         """
         super(SimpleAsyncHTTPClient, self).initialize(io_loop,
                                                       defaults=defaults)
-        self.max_clients = max_clients
-        self.queue = collections.deque()
+        self.max_clients = max_clients  # 最大连接数
+        self.queue = collections.deque()  # 来一个小小的队列
         self.active = {}
         self.waiting = {}
         self.max_buffer_size = max_buffer_size
         self.max_header_size = max_header_size
+
         # TCPClient could create a Resolver for us, but we have to do it
         # ourselves to support hostname_mapping.
+        # 这里估计是一个解析DNS的配置，先不理会
         if resolver:
             self.resolver = resolver
             self.own_resolver = False
@@ -100,6 +106,7 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
         if hostname_mapping is not None:
             self.resolver = OverrideResolver(resolver=self.resolver,
                                              mapping=hostname_mapping)
+        # 这里来了一个tcp的连接
         self.tcp_client = TCPClient(resolver=self.resolver, io_loop=io_loop)
 
     def close(self):
@@ -110,17 +117,20 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
 
     def fetch_impl(self, request, callback):
         key = object()
-        self.queue.append((key, request, callback))
-        if not len(self.active) < self.max_clients:
+        self.queue.append((key, request, callback))  # 给队列里面添加一个相关的回调
+
+        if not len(self.active) < self.max_clients:  # 如果活跃的太多
+            # 如果活跃的太多，保存一部分稍后处理
             timeout_handle = self.io_loop.add_timeout(
                 self.io_loop.time() + min(request.connect_timeout,
                                           request.request_timeout),
                 functools.partial(self._on_timeout, key))
-        else:
+        else:  # 如果活跃的太少
             timeout_handle = None
+        # 添加一个到waiting
         self.waiting[key] = (request, callback, timeout_handle)
         self._process_queue()
-        if self.queue:
+        if self.queue:  # 如果还有没有处理的，这里就是显示太多了
             gen_log.debug("max_clients limit reached, request queued. "
                           "%d active, %d queued requests." % (
                               len(self.active), len(self.queue)))
@@ -132,7 +142,7 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
                 if key not in self.waiting:
                     continue
                 self._remove_timeout(key)
-                self.active[key] = (request, callback)
+                self.active[key] = (request, callback)  # 这里添加一个活跃的
                 release_callback = functools.partial(self._release_fetch, key)
                 self._handle_request(request, release_callback, callback)
 
@@ -141,6 +151,7 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
                         final_callback, self.max_buffer_size, self.tcp_client,
                         self.max_header_size)
 
+    # 取消一个fetch的操作
     def _release_fetch(self, key):
         del self.active[key]
         self._process_queue()
@@ -162,6 +173,7 @@ class SimpleAsyncHTTPClient(AsyncHTTPClient):
         del self.waiting[key]
 
 
+# 这个类是正式处理连接的
 class _HTTPConnection(httputil.HTTPMessageDelegate):
     _SUPPORTED_METHODS = ("GET", "HEAD", "POST", "PUT",
                           "DELETE", "PATCH", "OPTIONS")
@@ -169,14 +181,14 @@ class _HTTPConnection(httputil.HTTPMessageDelegate):
     def __init__(self, io_loop, client, request, release_callback,
                  final_callback, max_buffer_size, tcp_client,
                  max_header_size):
-        self.start_time = io_loop.time()
+        self.start_time = io_loop.time()  # 连接开始时间
         self.io_loop = io_loop
-        self.client = client
-        self.request = request
-        self.release_callback = release_callback
-        self.final_callback = final_callback
+        self.client = client  # 请求的client，一般都是同一个
+        self.request = request  # 代理的request
+        self.release_callback = release_callback  # 如果取消了fetch，执行的回调
+        self.final_callback = final_callback  # 如果结束了，执行的回调
         self.max_buffer_size = max_buffer_size
-        self.tcp_client = tcp_client
+        self.tcp_client = tcp_client  # 一个tcp的连接
         self.max_header_size = max_header_size
         self.code = None
         self.headers = None
@@ -215,10 +227,14 @@ class _HTTPConnection(httputil.HTTPMessageDelegate):
             ssl_options = self._get_ssl_options(self.parsed.scheme)
 
             timeout = min(self.request.connect_timeout, self.request.request_timeout)
+
+            # 这里执行添加一个timeout到io_loop，也就是如果请求过时什么的
             if timeout:
                 self._timeout = self.io_loop.add_timeout(
                     self.start_time + timeout,
                     stack_context.wrap(self._on_timeout))
+            # 这个函数connect好像是没有回调的一个函数，最后一个callback是怎么回事儿
+            # 这个connect是一个被@gen.coroutine的方法
             self.tcp_client.connect(host, port, af=af,
                                     ssl_options=ssl_options,
                                     callback=self._on_connect)
@@ -262,6 +278,7 @@ class _HTTPConnection(httputil.HTTPMessageDelegate):
 
     def _on_timeout(self):
         self._timeout = None
+        # 如果self.final_callback使用了，这里会自动被设置为None
         if self.final_callback is not None:
             raise HTTPError(599, "Timeout")
 
