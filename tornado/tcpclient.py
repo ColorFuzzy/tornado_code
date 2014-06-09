@@ -160,6 +160,7 @@ class TCPClient(object):
         addrinfo = yield self.resolver.resolve(host, port, af)
         connector = _Connector(
             addrinfo, self.io_loop,
+            # 这个涉及到三个函数的调用，不说了，多是泪
             functools.partial(self._create_stream,
                               host, ssl_options, max_buffer_size))
         af, addr, stream = yield connector.start()
