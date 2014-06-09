@@ -515,12 +515,8 @@ pp        except from a signal handler.  Note that this is the **only**
         """
         raise NotImplementedError()
 
-    # wrap里面的callback
-    # IOLoop.current().add_future(future,
-    #                             lambda future: callback(future.result()))
-    # callback也是一个回调函数，lambda函数里面的future是一个变量，没有确定
-    # 这个add_future函数只是给future添加了一个如果future执行成功之后的回调：
-    # 也就是future没有执行成功的话，不会给IOLoop._callbacks添加任何的元素！！！
+    # 如果future执行完毕了，执行 self.add_callback(callback, future)
+    # 也就是有时间就执行 callback(future)
     def add_future(self, future, callback):
         """Schedules a callback on the ``IOLoop`` when the given
         `.Future` is finished.
@@ -531,9 +527,6 @@ pp        except from a signal handler.  Note that this is the **only**
         assert is_future(future)  # 判定是不是future类型
         callback = stack_context.wrap(callback)  # 包裹一下，二次包裹直接跳过
 
-        # 给future添加一个成功后的回调函数
-        # 这句话的功能是：如果这个future执行完毕了，lambda函数会被添加到IOLoop._callbacks
-        # 现在的问题是：future执行完毕这个事件是如何捕获的？？？？？？？？
         future.add_done_callback(
             lambda future: self.add_callback(callback, future))
 
@@ -875,7 +868,7 @@ class PollIOLoop(IOLoop):
         timeout.callback = None
         self._cancellations += 1
 
-    # 给IOLoop添加一个回调函数
+    # 有时间就执行： callback(*args, **kwargs)
     def add_callback(self, callback, *args, **kwargs):
         with self._callback_lock:
             if self._closing:

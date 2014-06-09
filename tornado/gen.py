@@ -189,10 +189,11 @@ def _make_coroutine_wrapper(func, replace_callback):
     def wrapper(*args, **kwargs):
         future = TracebackFuture()  # 一个future的跟踪对象，这个是关键
 
+        # 下面的这个future好好读懂，然后好好理解传说中的future功能
         if replace_callback and 'callback' in kwargs:
             callback = kwargs.pop('callback')
-            # 这个add_future函数只是给future添加了一个如果future执行成功之后的回调：
-            # 也就是future没有执行成功的话，不会给IOLoop._callbacks添加任何的元素！！！
+
+            # 就是future成功了，执行lambda future: callback(future.result())函数
             IOLoop.current().add_future(
                 future, lambda future: callback(future.result()))
 

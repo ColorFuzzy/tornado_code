@@ -125,8 +125,7 @@ class Future(object):
             self._check_done()
             return None
 
-    # 添加一个future执行完毕的回调函数
-    # fn 的唯一参数必须是future类型，后面的调用fn(self)
+    # future执行完毕后执行 fn(self)
     def add_done_callback(self, fn):
         """Attaches the given callback to the `Future`.
 

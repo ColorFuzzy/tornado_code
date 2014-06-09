@@ -90,6 +90,7 @@ class _State(threading.local):
 _state = _State()
 
 
+# 或许这些是为多个连接同时进来的时候提供的，这样才需要管理stack
 class StackContext(object):
     """Establishes the given context as a StackContext that will be transferred.
 
