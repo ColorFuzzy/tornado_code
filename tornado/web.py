@@ -1315,7 +1315,7 @@ class RequestHandler(object):
             method = getattr(self, self.request.method.lower())
             result = method(*self.path_args, **self.path_kwargs)
             if is_future(result):
-                result = yield result
+                result = yield result  # 把future类型继续抛出
             if result is not None:
                 raise TypeError("Expected None, got %r" % result)
             if self._auto_finish and not self._finished:

@@ -156,6 +156,7 @@ def coroutine(func, replace_callback=True):
     Any generator that yields objects from this module must be wrapped
     in either this decorator or `engine`.
 
+    可以使用`Return(value) <Return>`返回值
     Coroutines may "return" by raising the special exception
     `Return(value) <Return>`.  In Python 3.3+, it is also possible for
     the function to simply use the ``return value`` statement (prior to
@@ -178,6 +179,7 @@ def coroutine(func, replace_callback=True):
 
 
 # 读懂这个函数之前，先看看http的那个异步是如何实现的，同时看看IOStream的异步是如何实现的
+# 好好地解释一下几个装饰器的实例
 def _make_coroutine_wrapper(func, replace_callback):
     """The inner workings of ``@gen.coroutine`` and ``@gen.engine``.
 
@@ -189,26 +191,34 @@ def _make_coroutine_wrapper(func, replace_callback):
     def wrapper(*args, **kwargs):
         future = TracebackFuture()  # 一个future的跟踪对象，这个是关键
 
+        # 原来的func不支持callback的参数，修饰之后是可以使用的
         # 下面的这个future好好读懂，然后好好理解传说中的future功能
         if replace_callback and 'callback' in kwargs:
             callback = kwargs.pop('callback')
 
-            # 就是future成功了，执行lambda future: callback(future.result())函数
+            # 就是future成功了，执行lambda future: callback(future.result())函数，参数就是这个future
+            # 也就是把这个可能执行的语句放到IOLoop里面去，这个就是这个add_future的功能
             IOLoop.current().add_future(
                 future, lambda future: callback(future.result()))
 
         # 异步的HTTP和异步的IOStream也许返回的类型不一样，
         # 感觉两个异步的东西才是tornado的关键
         try:
-            result = func(*args, **kwargs)  # 尝试运行函数，这里会yield出来，所以不会被阻塞的
+            # 尝试运行函数，这里会yield出来，所以不会被阻塞的
+            # 1. 返回一个Return 2. 返回一个StopIteration（这个不是很清楚？？）
+            # 3. 返回一个Exception?就是运行错误了
+            result = func(*args, **kwargs)
         except (Return, StopIteration) as e:
-            result = getattr(e, 'value', None)  # 这个以后慢慢的阅读
+            # 到这里说明结果已经出来了，future的任务结束了
+            # ？StopIteration无法理解
+            result = getattr(e, 'value', None)
         except Exception:  # 如果出错的话
             # 运行出错了,这个时候依旧会添加到IOLoop._callbacks
+            # 下面这句话执行这个future全部的回调
             future.set_exc_info(sys.exc_info())
-            return future  # 返回一个future是干毛啊，以后再说吧
+            return future  # 一但结果确定，直接返回一个future
         else:
-            # yield一个 types.GeneratorType
+            # 如果内部有yield，直接返回一个types.GeneratorType
             if isinstance(result, types.GeneratorType):
                 # Inline the first iteration of Runner.run.  This lets us
                 # avoid the cost of creating a Runner when the coroutine
@@ -217,22 +227,28 @@ def _make_coroutine_wrapper(func, replace_callback):
                 # performance penalty for the synchronous case.
                 try:
                     orig_stack_contexts = stack_context._state.contexts
-                    yielded = next(result)  # 获取yield的结果
+
+                    # 这里是获取yield的结果的地方，一般还是一个future的东西
+                    yielded = next(result)  # 获取yield的结果，这里一般是一个future类型yield出来的东西
+
+                    # 先忽略下面的出错处理
                     if stack_context._state.contexts is not orig_stack_contexts:
                         yielded = TracebackFuture()
                         yielded.set_exception(
                             stack_context.StackContextInconsistentError(
                                 'stack_context inconsistency (probably caused '
                                 'by yield within a "with StackContext" block)'))
-                except (StopIteration, Return) as e:
+                except (StopIteration, Return) as e:  # 直接出结果
                     future.set_result(getattr(e, 'value', None))
-                except Exception:
+                except Exception:  # bug了
                     future.set_exc_info(sys.exc_info())
-                else:
+                else:  # 返回一个future
                     Runner(result, future, yielded)
-                return future
+
+                # 如果是一个Exception，这里记录到future，然后返回了
+                return future  # 这里出来一个future倒地是为了干什么呢？有机会详细看看自己的代码
         future.set_result(result)  # 这个时候添加回调到了IOLoop
-        return future  # 好吧，依旧是返回future
+        return future
     return wrapper
 
 
@@ -511,6 +527,7 @@ def with_timeout(timeout, future, io_loop=None):
     return result
 
 
+# 一个done了的future
 _null_future = Future()
 _null_future.set_result(None)
 
@@ -528,6 +545,7 @@ Usage: ``yield gen.moment``
 """
 moment.set_result(None)
 
+
 class Runner(object):
     """Internal implementation of `tornado.gen.engine`.
 
@@ -537,9 +555,9 @@ class Runner(object):
     `.TracebackFuture`)
     """
     def __init__(self, gen, result_future, first_yielded):
-        self.gen = gen
-        self.result_future = result_future
-        self.future = _null_future
+        self.gen = gen  # 就是上层的那个result，基本就是一个generator
+        self.result_future = result_future  # next(result)之后得到的一个结果
+        self.future = _null_future  # 空future
         self.yield_point = None
         self.pending_callbacks = None
         self.results = None
@@ -703,6 +721,7 @@ class Runner(object):
             self.stack_context_deactivate = None
 
 Arguments = collections.namedtuple('Arguments', ['args', 'kwargs'])
+
 
 def _argument_adapter(callback):
     """Returns a function that when invoked runs ``callback`` with one arg.
