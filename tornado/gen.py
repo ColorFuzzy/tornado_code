@@ -246,7 +246,7 @@ def _make_coroutine_wrapper(func, replace_callback):
                     Runner(result, future, yielded)
 
                 # 如果是一个Exception，这里记录到future，然后返回了
-                return future  # 这里出来一个future倒地是为了干什么呢？有机会详细看看自己的代码
+                return future
         future.set_result(result)  # 这个时候添加回调到了IOLoop
         return future
     return wrapper
@@ -321,7 +321,7 @@ class Callback(YieldPoint):
     def __init__(self, key):
         self.key = key
 
-    def start(self, runner):
+    def start(self, runner):  # 这个runner的数据结构完全不清楚
         self.runner = runner
         runner.register_callback(self.key)
 
@@ -555,8 +555,9 @@ class Runner(object):
     `.TracebackFuture`)
     """
     def __init__(self, gen, result_future, first_yielded):
-        self.gen = gen  # 就是上层的那个result，基本就是一个generator
-        self.result_future = result_future  # next(result)之后得到的一个结果
+        self.gen = gen  # 就是上层的那个result，基本就是一个generator, func(..)结果
+        self.result_future = result_future  # 那个future，和result绑定的
+        # first_yielded = next(gen)
         self.future = _null_future  # 空future
         self.yield_point = None
         self.pending_callbacks = None

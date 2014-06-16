@@ -46,53 +46,52 @@ from tornado.ioloop import IOLoop
 from tornado.util import Configurable
 
 
-# 暂时注释掉，免得碍眼
 # 一个阻塞的http client客户端，一般不使用，大多使用AsyncHTTPClient
-# class HTTPClient(object):
-#     """A blocking HTTP client.
-#
-#     This interface is provided for convenience and testing; most applications
-#     that are running an IOLoop will want to use `AsyncHTTPClient` instead.
-#     Typical usage looks like this::
-#
-#         http_client = httpclient.HTTPClient()
-#         try:
-#             response = http_client.fetch("http://www.google.com/")
-#             print response.body
-#         except httpclient.HTTPError as e:
-#             print "Error:", e
-#         http_client.close()
-#     """
-#     def __init__(self, async_client_class=None, **kwargs):
-#         self._io_loop = IOLoop()
-#         if async_client_class is None:
-#             async_client_class = AsyncHTTPClient
-#         self._async_client = async_client_class(self._io_loop, **kwargs)
-#         self._closed = False
-#
-#     def __del__(self):
-#         self.close()
-#
-#     def close(self):
-#         """Closes the HTTPClient, freeing any resources used."""
-#         if not self._closed:
-#             self._async_client.close()
-#             self._io_loop.close()
-#             self._closed = True
-#
-#     def fetch(self, request, **kwargs):
-#         """Executes a request, returning an `HTTPResponse`.
-#
-#         The request may be either a string URL or an `HTTPRequest` object.
-#         If it is a string, we construct an `HTTPRequest` using any additional
-#         kwargs: ``HTTPRequest(request, **kwargs)``
-#
-#         If an error occurs during the fetch, we raise an `HTTPError`.
-#         """
-#         response = self._io_loop.run_sync(functools.partial(
-#             self._async_client.fetch, request, **kwargs))
-#         response.rethrow()
-#         return response
+class HTTPClient(object):
+    """A blocking HTTP client.
+
+    This interface is provided for convenience and testing; most applications
+    that are running an IOLoop will want to use `AsyncHTTPClient` instead.
+    Typical usage looks like this::
+
+        http_client = httpclient.HTTPClient()
+        try:
+            response = http_client.fetch("http://www.google.com/")
+            print response.body
+        except httpclient.HTTPError as e:
+            print "Error:", e
+        http_client.close()
+    """
+    def __init__(self, async_client_class=None, **kwargs):
+        self._io_loop = IOLoop()
+        if async_client_class is None:
+            async_client_class = AsyncHTTPClient
+        self._async_client = async_client_class(self._io_loop, **kwargs)
+        self._closed = False
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        """Closes the HTTPClient, freeing any resources used."""
+        if not self._closed:
+            self._async_client.close()
+            self._io_loop.close()
+            self._closed = True
+
+    def fetch(self, request, **kwargs):
+        """Executes a request, returning an `HTTPResponse`.
+
+        The request may be either a string URL or an `HTTPRequest` object.
+        If it is a string, we construct an `HTTPRequest` using any additional
+        kwargs: ``HTTPRequest(request, **kwargs)``
+
+        If an error occurs during the fetch, we raise an `HTTPError`.
+        """
+        response = self._io_loop.run_sync(functools.partial(
+            self._async_client.fetch, request, **kwargs))
+        response.rethrow()
+        return response
 
 
 # 一般只有一个实例，分析一下，多个fetch是如何实现的
